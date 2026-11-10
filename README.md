@@ -18,9 +18,12 @@
 
 Utilisé sur : **Opale · Lobby**.
 
+Avec **SHNetwork** (facultatif), le toast d'un joueur connecté sur un autre serveur du réseau lui est envoyé là où il se trouve (commande exécutée par la console de son serveur, une seule fois), et la cible `global` atteint les joueurs de tous les serveurs. Sans SHNetwork, ou avec `reseau.actif: false`, seuls les joueurs du serveur reçoivent le toast.
+
 ## Dépendances
 
 - Obligatoires : `UltimateAdvancementAPI`
+- Facultatives : `SHNetwork`
 
 ## Commandes
 
@@ -36,7 +39,15 @@ Utilisé sur : **Opale · Lobby**.
 
 ## Configuration
 
-Aucun fichier de configuration.
+Fichiers par défaut :
+
+<pre>
+plugins/SHToast/
+├── <a href="src/main/resources/config.yml">config.yml</a>
+└── <a href="src/main/resources/messages.yml">messages.yml</a>
+</pre>
+
+La clé `reseau.actif` (par défaut `true`) active l'envoi vers les autres serveurs quand SHNetwork est présent. Elle se lit au démarrage.
 
 ## Compilation
 

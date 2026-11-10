@@ -1,0 +1,18 @@
+# SHToast : envoie une notification de type progrès (toast) à un joueur ou à tous les joueurs, par UltimateAdvancementAPI.
+#
+# Commande :
+#   /shtoast <item> <type> <joueur|global> <message>
+#       item     matériau de l'icône (ex. diamond)
+#       type     TASK, GOAL ou CHALLENGE
+#       joueur   pseudo du joueur, ou global pour tous les joueurs en ligne
+#
+# Permission :
+#   shtoast.use     /shtoast (op par défaut ; la console l'utilise toujours).
+#
+# Les messages sont dans messages.yml.
+
+# Avec SHNetwork, un toast adressé à un joueur connecté sur un autre serveur du réseau lui est envoyé là où il se
+# trouve (commande exécutée par la console de son serveur, une seule fois), et « global » atteint les joueurs de tous
+# les serveurs. Sans SHNetwork, ou à false, seuls les joueurs de ce serveur sont atteints. Se lit au démarrage.
+reseau:
+  actif: true

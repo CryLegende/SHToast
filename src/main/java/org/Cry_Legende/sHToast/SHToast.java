@@ -1,13 +1,10 @@
 package org.Cry_Legende.sHToast;
 
-// Imports de UltimateAdvancementAPI (les noms exacts peuvent varier)
-
 import com.fren_gor.ultimateAdvancementAPI.UltimateAdvancementAPI;
-import com.fren_gor.ultimateAdvancementAPI.advancement.display.AdvancementFrameType; // Ou un nom similaire
-// Possiblement besoin d'importer BaseComponent si l'API l'utilise pour le titre du toast
-// import net.md_5.bungee.api.chat.BaseComponent;
-// import net.md_5.bungee.api.chat.TextComponent;
-
+import com.fren_gor.ultimateAdvancementAPI.advancement.display.AdvancementFrameType;
+import com.google.gson.JsonObject;
+import org.Cry_Legende.sHToast.network.ShNetworkToasts;
+import org.Cry_Legende.sHToast.network.ToastNetwork;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -20,14 +17,19 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Level;
 
 public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter {
 
     private static final String PERMISSION_USE = "shtoast.use";
     private UltimateAdvancementAPI ultimateApi;
+    private Messages messages;
+    /** Joueurs des autres serveurs du réseau ; null sans SHNetwork. */
+    private ToastNetwork network;
 
     @Override
     public void onEnable() {
@@ -45,6 +47,10 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
             return;
         }
 
+        saveDefaultConfig();
+        messages = new Messages(this);
+        enableNetwork();
+
         this.getCommand("shtoast").setExecutor(this);
         this.getCommand("shtoast").setTabCompleter(this);
         getLogger().info("SHToast enabled and hooked into UltimateAdvancementAPI!");
@@ -55,6 +61,24 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
         getLogger().info("SHToast disabled!");
     }
 
+    /**
+     * Passe en mode réseau si SHNetwork est installé et 'reseau.actif' est vrai. La classe qui touche à SHNetwork
+     * n'est résolue qu'ici : sans lui, rien n'est chargé et les toasts restent locaux.
+     */
+    private void enableNetwork() {
+        if (!getConfig().getBoolean("reseau.actif", true)) return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("SHNetwork")) return;
+        try {
+            ToastNetwork net = ShNetworkToasts.open();
+            net.onBroadcast(this::receiveGlobal);
+            network = net;
+            getLogger().info("SHNetwork détecté : les toasts atteignent les joueurs de tout le réseau.");
+        } catch (RuntimeException | LinkageError e) {
+            network = null;
+            getLogger().log(Level.SEVERE, "SHNetwork présent mais inutilisable, toasts locaux à ce serveur : " + e);
+        }
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!command.getName().equalsIgnoreCase("shtoast")) {
@@ -62,19 +86,19 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
         }
 
         if (ultimateApi == null) {
-            sender.sendMessage("§cErreur : Le module de toasts n'est pas correctement initialisé. Contactez un administrateur.");
+            sender.sendMessage(messages.get("not-initialized"));
             // Log silencieux ici car l'erreur d'initialisation a déjà été loggée dans onEnable
             return true;
         }
 
         if (!sender.hasPermission(PERMISSION_USE)) {
-            sender.sendMessage("§cVous n'avez pas la permission d'utiliser cette commande.");
+            sender.sendMessage(messages.get("no-permission"));
             return true;
         }
 
         if (args.length < 4) {
-            sender.sendMessage("§cUsage: /shtoast <item> <type> <player|global> <message>");
-            sender.sendMessage("§cTypes: TASK, GOAL, CHALLENGE (Vérifier les noms exacts dans l'API)");
+            sender.sendMessage(messages.get("usage"));
+            sender.sendMessage(messages.get("usage-types"));
             return true;
         }
 
@@ -85,69 +109,90 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
 
         Material itemMaterial = Material.getMaterial(itemName.toUpperCase());
         if (itemMaterial == null || !itemMaterial.isItem()) {
-            sender.sendMessage("§cNom d'item invalide: " + itemName);
+            sender.sendMessage(messages.get("invalid-item", "item", itemName));
             return true;
         }
         ItemStack icon = new ItemStack(itemMaterial);
 
         AdvancementFrameType frameType;
         try {
-            frameType = AdvancementFrameType.valueOf(typeArg); // Adapter aux noms exacts de l'enum de l'API
+            frameType = AdvancementFrameType.valueOf(typeArg);
         } catch (IllegalArgumentException e) {
-            sender.sendMessage("§cType invalide: " + typeArg + ". Valeurs possibles: TASK, GOAL, CHALLENGE (vérifier doc API).");
+            sender.sendMessage(messages.get("invalid-type", "type", typeArg));
             return true;
         }
 
         List<Player> playersToSend = new ArrayList<>();
+        boolean everywhere = false;
         if (targetArg.equalsIgnoreCase("global")) {
-            if (Bukkit.getOnlinePlayers().isEmpty()) {
-                sender.sendMessage("§eAucun joueur en ligne.");
+            if (Bukkit.getOnlinePlayers().isEmpty() && (network == null || network.playersElsewhere() == 0)) {
+                sender.sendMessage(messages.get("nobody-online"));
                 return true;
             }
             playersToSend.addAll(Bukkit.getOnlinePlayers());
+            everywhere = network != null;
         } else {
-            Player player = Bukkit.getPlayer(targetArg);
+            Player player = Bukkit.getPlayerExact(targetArg);
+            if (player == null && network != null) {
+                // Connecté sur un autre serveur : son serveur affiche le toast à sa place
+                if (network.relay(targetArg, name -> "shtoast " + itemName + " " + typeArg + " " + name + " " + messageContent)) {
+                    sender.sendMessage(messages.get("sent"));
+                    return true;
+                }
+            }
             if (player == null) {
-                sender.sendMessage("§cJoueur non trouvé: " + targetArg);
+                player = Bukkit.getPlayer(targetArg);
+            }
+            if (player == null) {
+                sender.sendMessage(messages.get("player-not-found", "player", targetArg));
                 return true;
             }
             playersToSend.add(player);
         }
 
-        if (playersToSend.isEmpty()) {
-            sender.sendMessage("§eAucun joueur cible.");
+        if (playersToSend.isEmpty() && !everywhere) {
+            sender.sendMessage(messages.get("no-target"));
             return true;
         }
 
         try {
             sendToast(playersToSend, icon, frameType, messageContent);
-            sender.sendMessage("§aToast envoyé !");
+            if (everywhere) {
+                JsonObject toast = new JsonObject();
+                toast.addProperty("item", itemMaterial.name());
+                toast.addProperty("type", frameType.name());
+                toast.addProperty("message", messageContent);
+                network.broadcast(toast);
+            }
+            sender.sendMessage(messages.get("sent"));
         } catch (Throwable t) { // Attraper Throwable pour inclure les Errors critiques
-            sender.sendMessage("§cUne erreur interne est survenue lors de l'envoi du toast. Vérifiez la console du serveur.");
+            sender.sendMessage(messages.get("internal-error"));
             getLogger().log(Level.SEVERE, "Erreur lors de l'appel à sendToast (UltimateAdvancementAPI):", t);
         }
         return true;
     }
 
-    private void sendToast(List<Player> players, ItemStack icon, AdvancementFrameType frame, String message) {
-        // Cette partie dépendra ENTIÈREMENT de la signature exacte de UltimateAdvancementAPI#displayCustomToast
-        // et des types d'objets qu'elle attend.
-        // L'exemple ci-dessous est une HYPOTHÈSE.
+    /** Toast général envoyé depuis un autre serveur : affiché à tous les joueurs d'ici. */
+    private void receiveGlobal(JsonObject toast) {
+        try {
+            Material material = Material.getMaterial(toast.get("item").getAsString().toUpperCase(Locale.ROOT));
+            AdvancementFrameType frame = AdvancementFrameType.valueOf(toast.get("type").getAsString().toUpperCase(Locale.ROOT));
+            if (material == null || !material.isItem() || Bukkit.getOnlinePlayers().isEmpty()) {
+                return;
+            }
+            sendToast(Bukkit.getOnlinePlayers(), new ItemStack(material), frame, toast.get("message").getAsString());
+        } catch (RuntimeException e) {
+            getLogger().log(Level.WARNING, "Toast général reçu du réseau illisible : " + e);
+        }
+    }
 
+    private void sendToast(Collection<? extends Player> players, ItemStack icon, AdvancementFrameType frame, String message) {
         for (Player player : players) {
             if (player.isOnline()) {
                 try {
-                    // HYPOTHÈSE 1: Le message est une String
                     ultimateApi.displayCustomToast(player, icon, message, frame);
-
-                    // HYPOTHÈSE 2: Le message est un BaseComponent[] (comme avec BungeeCord Chat API)
-                    // import net.md_5.bungee.api.chat.TextComponent;
-                    // import net.md_5.bungee.api.chat.BaseComponent;
-                    // ultimateApi.displayCustomToast(player, icon, new BaseComponent[]{new TextComponent(message)}, frame);
-
                 } catch (Throwable t) {
-                    // Logguer l'erreur si l'API elle-même échoue pour un joueur spécifique.
-                    // Éviter de spammer le joueur à moins que ce ne soit une erreur qu'il peut résoudre.
+                    // Si l'API échoue pour un joueur, on le note sans interrompre les autres
                     getLogger().log(Level.WARNING, "Erreur lors de l'envoi du toast au joueur " + player.getName() + " via UltimateAdvancementAPI:", t);
                 }
             }
@@ -173,7 +218,6 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
                 }
             }
         } else if (args.length == 2) { // <type>
-            // Adapter aux noms exacts de l'enum AdvancementFrameType de l'API
             for (AdvancementFrameType frameApiType : AdvancementFrameType.values()) {
                 if (frameApiType.name().toLowerCase().startsWith(currentArg)) {
                     completions.add(frameApiType.name().toLowerCase());

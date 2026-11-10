@@ -1,0 +1,22 @@
+# Messages de SHToast. Codes couleur avec &.
+# Placeholders : {item}, {type} et {player} sont remplacés par ce que l'émetteur a tapé.
+
+# Module d'avancements non initialisé au démarrage
+not-initialized: "&cErreur : Le module de toasts n'est pas correctement initialisé. Contactez un administrateur."
+
+no-permission: "&cVous n'avez pas la permission d'utiliser cette commande."
+
+# /shtoast sans assez d'arguments (deux lignes)
+usage: "&cUsage: /shtoast <item> <type> <player|global> <message>"
+usage-types: "&cTypes: TASK, GOAL, CHALLENGE (Vérifier les noms exacts dans l'API)"
+
+invalid-item: "&cNom d'item invalide: {item}"
+invalid-type: "&cType invalide: {type}. Valeurs possibles: TASK, GOAL, CHALLENGE (vérifier doc API)."
+
+# Cible « global » sans aucun joueur en ligne
+nobody-online: "&eAucun joueur en ligne."
+player-not-found: "&cJoueur non trouvé: {player}"
+no-target: "&eAucun joueur cible."
+
+sent: "&aToast envoyé !"
+internal-error: "&cUne erreur interne est survenue lors de l'envoi du toast. Vérifiez la console du serveur."

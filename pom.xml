@@ -91,5 +91,12 @@
             <version>2.5.1</version>
             <scope>provided</scope>
         </dependency>
+        <!-- Facultatif a l'execution (softdepend) : sans lui, seuls les joueurs du serveur recoivent les toasts -->
+        <dependency>
+            <groupId>org.Cry_Legende</groupId>
+            <artifactId>SHNetwork</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>
