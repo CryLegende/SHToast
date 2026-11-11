@@ -214,7 +214,7 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
             try {
                 new YamlConfiguration().load(file);
             } catch (IOException | InvalidConfigurationException e) {
-                String error = String.valueOf(e.getMessage()).replaceAll("\s+", " ").trim();
+                String error = String.valueOf(e.getMessage()).replaceAll("\\s+", " ").trim();
                 getLogger().warning(name + " illisible, configuration inchangée : " + error);
                 sender.sendMessage(messages.get("reload-error", "file", name, "error", error));
                 return;
