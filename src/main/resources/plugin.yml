@@ -16,3 +16,11 @@ permissions:
   shtoast.use:
     description: Allows user to send toasts with /shtoast command
     default: op
+  shtoast.admin:
+    description: Administration de SHToast (/shtoast reload).
+    default: op
+    children:
+      shtoast.admin.reload: true
+  shtoast.admin.reload:
+    description: Recharger config.yml et messages.yml (/shtoast reload).
+    default: op

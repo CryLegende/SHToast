@@ -1,11 +1,13 @@
 package org.Cry_Legende.sHToast;
 
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
@@ -13,22 +15,34 @@ import java.nio.charset.StandardCharsets;
 final class Messages {
 
     private final JavaPlugin plugin;
-    private FileConfiguration file;
-    private FileConfiguration defaults;
+    private volatile FileConfiguration file;
+    private volatile FileConfiguration defaults;
 
     Messages(JavaPlugin plugin) {
         this.plugin = plugin;
-        reload();
+        file = YamlConfiguration.loadConfiguration(target());
+        defaults = jarDefaults();
     }
 
-    void reload() {
+    private File target() {
         File target = new File(plugin.getDataFolder(), "messages.yml");
         if (!target.exists()) {
             plugin.saveResource("messages.yml", false);
         }
-        file = YamlConfiguration.loadConfiguration(target);
-        defaults = YamlConfiguration.loadConfiguration(
+        return target;
+    }
+
+    private FileConfiguration jarDefaults() {
+        return YamlConfiguration.loadConfiguration(
             new InputStreamReader(plugin.getResource("messages.yml"), StandardCharsets.UTF_8));
+    }
+
+    /** Relit messages.yml. Un fichier illisible lève l'erreur et laisse les textes en place. */
+    void reload() throws IOException, InvalidConfigurationException {
+        YamlConfiguration loaded = new YamlConfiguration();
+        loaded.load(target());
+        file = loaded;
+        defaults = jarDefaults();
     }
 
     /** Message de la clé ; chaque paire de {@code values} est un {nom} à remplacer par sa valeur. */

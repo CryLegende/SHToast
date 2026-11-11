@@ -6,9 +6,12 @@ not-initialized: "&cErreur : Le module de toasts n'est pas correctement initiali
 
 no-permission: "&cVous n'avez pas la permission d'utiliser cette commande."
 
-# /shtoast sans assez d'arguments (deux lignes)
-usage: "&cUsage: /shtoast <item> <type> <player|global> <message>"
-usage-types: "&cTypes: TASK, GOAL, CHALLENGE (Vérifier les noms exacts dans l'API)"
+# /shtoast sans assez d'arguments : une ligne, avec seulement les formes que l'expéditeur peut utiliser
+# {commands} : formes permises, séparées par usage-separator
+usage-line: "&7&l« &e&lSH &8&l» &7Utilisation : &e{commands}"
+usage-send: "/shtoast <item> <TASK|GOAL|CHALLENGE> <joueur|global> <message>"
+usage-reload: "/shtoast reload"
+usage-separator: " &7ou &e"
 
 invalid-item: "&cNom d'item invalide: {item}"
 invalid-type: "&cType invalide: {type}. Valeurs possibles: TASK, GOAL, CHALLENGE (vérifier doc API)."
@@ -20,3 +23,8 @@ no-target: "&eAucun joueur cible."
 
 sent: "&aToast envoyé !"
 internal-error: "&cUne erreur interne est survenue lors de l'envoi du toast. Vérifiez la console du serveur."
+
+# /shtoast reload. {file} : fichier illisible, {error} : cause (l'ancienne configuration reste en place)
+reload-done: "&7&l« &a&lSH &8&l» &7Configuration et messages rechargés."
+reload-error: "&7&l« &c&lSH &8&l» &7Rechargement annulé, &c{file} &7est illisible : &c{error}"
+reload-restart: "&7&l« &6&lSH &8&l» &7reseau.actif ne se lit qu'au démarrage : &6redémarrage nécessaire&7 pour le changer."

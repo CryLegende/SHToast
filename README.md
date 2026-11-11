@@ -29,13 +29,16 @@ Avec **SHNetwork** (facultatif), le toast d'un joueur connecté sur un autre ser
 
 | Commande | Alias | Description | Permission |
 |---|---|---|---|
-| `/shtoast` | — | Sends a toast notification | — |
+| `/shtoast <item> <type> <joueur\|global> <message>` | — | Envoie un toast à un joueur ou à tous (`TASK`, `GOAL`, `CHALLENGE`). | `shtoast.use` |
+| `/shtoast reload` | — | Relit `config.yml` et `messages.yml`. | `shtoast.admin.reload` |
 
 ## Permissions
 
 | Permission | Description | Par défaut |
 |---|---|---|
-| `shtoast.use` | Allows user to send toasts with /shtoast command | `op` |
+| `shtoast.use` | Envoyer un toast avec `/shtoast`. | `op` |
+| `shtoast.admin` | Toutes les sous-commandes d'administration. | `op` |
+| `shtoast.admin.reload` | `/shtoast reload`. | `op` |
 
 ## Configuration
 
@@ -47,7 +50,7 @@ plugins/SHToast/
 └── <a href="src/main/resources/messages.yml">messages.yml</a>
 </pre>
 
-La clé `reseau.actif` (par défaut `true`) active l'envoi vers les autres serveurs quand SHNetwork est présent. Elle se lit au démarrage.
+La clé `reseau.actif` (par défaut `true`) active l'envoi vers les autres serveurs quand SHNetwork est présent. Elle se lit au démarrage : un changement demande un redémarrage.
 
 ## Compilation
 

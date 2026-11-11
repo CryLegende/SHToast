@@ -11,10 +11,14 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,10 +30,13 @@ import java.util.logging.Level;
 public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter {
 
     private static final String PERMISSION_USE = "shtoast.use";
+    private static final String PERMISSION_RELOAD = "shtoast.admin.reload";
     private UltimateAdvancementAPI ultimateApi;
     private Messages messages;
     /** Joueurs des autres serveurs du réseau ; null sans SHNetwork. */
     private ToastNetwork network;
+    /** Valeur de reseau.actif au démarrage : le mode réseau ne se branche ni ne se débranche à chaud. */
+    private boolean networkConfigured;
 
     @Override
     public void onEnable() {
@@ -48,6 +55,7 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
         }
 
         saveDefaultConfig();
+        networkConfigured = getConfig().getBoolean("reseau.actif", true);
         messages = new Messages(this);
         enableNetwork();
 
@@ -91,14 +99,23 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
             return true;
         }
 
+        // /shtoast reload : seule forme à un argument ; les envois gardent leur syntaxe (item type cible message)
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            if (!sender.hasPermission(PERMISSION_RELOAD)) {
+                sender.sendMessage(messages.get("no-permission"));
+                return true;
+            }
+            reload(sender);
+            return true;
+        }
+
         if (!sender.hasPermission(PERMISSION_USE)) {
             sender.sendMessage(messages.get("no-permission"));
             return true;
         }
 
         if (args.length < 4) {
-            sender.sendMessage(messages.get("usage"));
-            sender.sendMessage(messages.get("usage-types"));
+            sender.sendMessage(messages.get("usage-line", "commands", usageCommands(sender)));
             return true;
         }
 
@@ -172,6 +189,50 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
         return true;
     }
 
+    /** Les formes de la commande que l'expéditeur a le droit d'utiliser, pour la ligne d'usage. */
+    private String usageCommands(CommandSender sender) {
+        List<String> forms = new ArrayList<>();
+        if (sender.hasPermission(PERMISSION_USE)) {
+            forms.add(messages.get("usage-send"));
+        }
+        if (sender.hasPermission(PERMISSION_RELOAD)) {
+            forms.add(messages.get("usage-reload"));
+        }
+        return String.join(messages.get("usage-separator"), forms);
+    }
+
+    /**
+     * Relit config.yml et messages.yml. Un fichier illisible laisse tout en place. reseau.actif ne se relit qu'au
+     * démarrage : si sa valeur a changé, le message le dit.
+     */
+    private void reload(CommandSender sender) {
+        for (String name : List.of("config.yml", "messages.yml")) {
+            File file = new File(getDataFolder(), name);
+            if (!file.isFile()) {
+                continue;
+            }
+            try {
+                new YamlConfiguration().load(file);
+            } catch (IOException | InvalidConfigurationException e) {
+                String error = String.valueOf(e.getMessage()).replaceAll("\s+", " ").trim();
+                getLogger().warning(name + " illisible, configuration inchangée : " + error);
+                sender.sendMessage(messages.get("reload-error", "file", name, "error", error));
+                return;
+            }
+        }
+        reloadConfig();
+        try {
+            messages.reload();
+        } catch (IOException | InvalidConfigurationException e) {
+            sender.sendMessage(messages.get("reload-error", "file", "messages.yml", "error", String.valueOf(e.getMessage())));
+            return;
+        }
+        sender.sendMessage(messages.get("reload-done"));
+        if (getConfig().getBoolean("reseau.actif", true) != networkConfigured) {
+            sender.sendMessage(messages.get("reload-restart"));
+        }
+    }
+
     /** Toast général envoyé depuis un autre serveur : affiché à tous les joueurs d'ici. */
     private void receiveGlobal(JsonObject toast) {
         try {
@@ -204,14 +265,25 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
         if (!command.getName().equalsIgnoreCase("shtoast")) {
             return Collections.emptyList();
         }
-        if (!sender.hasPermission(PERMISSION_USE)) {
+        boolean canSend = sender.hasPermission(PERMISSION_USE);
+        boolean canReload = sender.hasPermission(PERMISSION_RELOAD);
+        if (!canSend && !canReload) {
             return Collections.emptyList();
         }
 
         List<String> completions = new ArrayList<>();
         String currentArg = args[args.length - 1].toLowerCase();
 
+        if (!canSend) { // reload seulement
+            if (args.length == 1 && "reload".startsWith(currentArg)) {
+                completions.add("reload");
+            }
+            return completions;
+        }
         if (args.length == 1) { // <item>
+            if (canReload && "reload".startsWith(currentArg)) {
+                completions.add("reload");
+            }
             for (Material material : Material.values()) {
                 if (material.isItem() && material.name().toLowerCase().startsWith(currentArg)) {
                     completions.add(material.name().toLowerCase());
