@@ -110,7 +110,10 @@ public class SHToast extends JavaPlugin implements CommandExecutor, TabCompleter
         }
 
         if (!sender.hasPermission(PERMISSION_USE)) {
-            sender.sendMessage(messages.get("no-permission"));
+            // Seul le droit de recharger : la ligne d'usage ne montre que cette forme
+            sender.sendMessage(sender.hasPermission(PERMISSION_RELOAD)
+                ? messages.get("usage-line", "commands", usageCommands(sender))
+                : messages.get("no-permission"));
             return true;
         }
 
